@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>線上 PDF 閱讀器</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+  </script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+
+    select {
+      margin: 20px;
+      padding: 10px;
+    }
+
+    #pdf-container {
+      width: 80%;
+      margin: auto;
+      position: relative;
+    }
+
+    canvas {
+      border: 1px solid black;
+      width: 100%;
+    }
+
+    .controls {
+      margin: 10px;
+    }
+
+    button {
+      padding: 10px;
+      margin: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    /* Loading 畫面 */
+    #loading {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 20px;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 10px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>選擇要閱讀的 PDF</h2>
+  <select id="pdfSelect">
+    <option value="">請選擇 PDF</option>
+  </select>
+  <div id="pdf-container">
+    <div id="loading">📄 讀取中...</div>
+    <canvas id="pdfCanvas"></canvas>
+  </div>
+  <div class="controls">
+    <button id="prevPage">上一頁</button>
+    <span id="pageInfo">第 1 頁 / 總共 1 頁</span>
+    <button id="nextPage">下一頁</button>
+  </div>
+
+  <script>
+    const pdfList = [
+      { value: "1.pdf", name: "產品簡報_春之戀" },
+      { value: "2.pdf", name: "產品簡報_皇之薑黃EX" },
+      { value: "3.pdf", name: "產品簡報_醋寶EX" },
+      { value: "4.pdf", name: "產品簡報_維納斯N賦活時空膠囊" },
+      { value: "5.pdf", name: "產品簡報_氧源露SOD-G+" },
+      { value: "6.pdf", name: "產品簡報_淨甜主義" },
+      { value: "7.pdf", name: "產品簡報_雪之妍EX" },
+      { value: "8.pdf", name: "產品簡報_菈頌PRO" },
+      { value: "9.pdf", name: "產品簡報_燃之力" }
+    ];
+
+    const selectElement = document.getElementById("pdfSelect");
+    const canvas = document.getElementById("pdfCanvas");
+    const ctx = canvas.getContext("2d");
+    const prevPageBtn = document.getElementById("prevPage");
+    const nextPageBtn = document.getElementById("nextPage");
+    const pageInfo = document.getElementById("pageInfo");
+    const loadingDiv = document.getElementById("loading");
+
+    let pdfDoc = null;
+    let currentPage = 1;
+    let totalPages = 1;
+    let currentPDF = "";
+
+    // 動態加載 PDF 選單
+    pdfList.forEach(pdf => {
+      let option = document.createElement("option");
+      option.value = pdf.value;
+      option.textContent = pdf.name;
+      selectElement.appendChild(option);
+    });
+
+    // 監聽選擇 PDF
+    selectElement.addEventListener("change", function () {
+      if (this.value) {
+        loadPDF(`pdfs/${this.value}`);
+      }
+    });
+
+    // 載入並顯示 PDF
+    function loadPDF(pdfUrl) {
+      loadingDiv.style.display = "block"; // 顯示 Loading
+      pdfjsLib.getDocument(pdfUrl).promise.then(doc => {
+        pdfDoc = doc;
+        totalPages = doc.numPages;
+        currentPage = 1;
+        currentPDF = pdfUrl;
+        renderPage(currentPage);
+      }).catch(error => {
+        alert("載入 PDF 失敗: " + error.message);
+      });
+    }
+
+    // 顯示指定頁數
+    function renderPage(pageNumber) {
+      loadingDiv.style.display = "block"; // 顯示 Loading
+      pdfDoc.getPage(pageNumber).then(page => {
+        let viewport = page.getViewport({ scale: 1.2 }); // 降低 scale 以加快速度
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        let renderContext = {
+          canvasContext: ctx,
+          viewport: viewport
+        };
+        page.render(renderContext).promise.then(() => {
+          loadingDiv.style.display = "none"; // 渲染完成後隱藏 Loading
+        });
+
+        // 預載入下一頁
+        if (pageNumber < totalPages) {
+          pdfDoc.getPage(pageNumber + 1);
+        }
+
+        // 更新頁數顯示
+        pageInfo.textContent = `第 ${pageNumber} 頁 / 總共 ${totalPages} 頁`;
+      });
+    }
+
+    // 上一頁
+    prevPageBtn.addEventListener("click", function () {
+      if (currentPage > 1) {
+        currentPage--;
+        renderPage(currentPage);
+      }
+    });
+
+    // 下一頁
+    nextPageBtn.addEventListener("click", function () {
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderPage(currentPage);
+      }
+    });
+  </script>
+</body>
+
+</html>
